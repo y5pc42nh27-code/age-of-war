@@ -2,18 +2,36 @@ export class AudioSystem {
   constructor() {
     this.muted = false;
     this.ctx = null;
+    this.buffers = new Map();
+    this.unavailable = false;
     this.musicClock = 0;
     this.lastShot = 0;
   }
   start() {
-    if (!this.ctx) {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.22;
-      this.master.connect(this.ctx.destination);
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) {
+        this.unavailable = true;
+        return false;
+      }
+      if (!this.ctx || this.ctx.state === "closed") {
+        this.ctx = new AudioContext();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = this.muted ? 0 : 0.22;
+        this.master.connect(this.ctx.destination);
+      }
+      if (this.ctx.state !== "running")
+        this.ctx.resume().catch(() => {
+          this.unavailable = true;
+        });
+      return true;
+    } catch {
+      this.ctx = null;
+      this.unavailable = true;
+      return false;
     }
-    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
   }
+
   mute(value) {
     this.muted = value;
     if (this.master)
@@ -24,7 +42,7 @@ export class AudioSystem {
       );
   }
   tone(freq, duration = 0.12, type = "sine", volume = 0.2, delay = 0) {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.muted || this.ctx.state !== "running") return;
     const t = this.ctx.currentTime + delay,
       o = this.ctx.createOscillator(),
       g = this.ctx.createGain();
@@ -40,14 +58,24 @@ export class AudioSystem {
     g.connect(this.master);
     o.start(t);
     o.stop(t + duration);
+    o.onended = () => {
+      o.disconnect();
+      g.disconnect();
+    };
   }
   noise(duration = 0.15, volume = 0.4, cutoff = 1100) {
-    if (!this.ctx || this.muted) return;
-    const count = Math.floor(this.ctx.sampleRate * duration),
-      buffer = this.ctx.createBuffer(1, count, this.ctx.sampleRate),
-      data = buffer.getChannelData(0);
-    for (let i = 0; i < count; i++)
-      data[i] = (Math.random() * 2 - 1) * (1 - i / count);
+    if (!this.ctx || this.muted || this.ctx.state !== "running") return;
+    const count = Math.floor(this.ctx.sampleRate * duration);
+    const key = `${count}`;
+    let buffer = this.buffers.get(key);
+    if (!buffer) {
+      buffer = this.ctx.createBuffer(1, count, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < count; i++)
+        data[i] = (Math.random() * 2 - 1) * (1 - i / count);
+      if (this.buffers.size >= 8) this.buffers.clear();
+      this.buffers.set(key, buffer);
+    }
     const source = this.ctx.createBufferSource(),
       g = this.ctx.createGain(),
       filter = this.ctx.createBiquadFilter();
@@ -59,6 +87,11 @@ export class AudioSystem {
     filter.connect(g);
     g.connect(this.master);
     source.start();
+    source.onended = () => {
+      source.disconnect();
+      g.disconnect();
+      filter.disconnect();
+    };
   }
   event(e) {
     if (e.type === "recruit" && e.side === 0) {
@@ -96,7 +129,7 @@ export class AudioSystem {
     }
   }
   music(dt, era = 0) {
-    if (!this.ctx || this.muted) return;
+    if (!this.ctx || this.muted || this.ctx.state !== "running") return;
     this.musicClock -= dt;
     if (this.musicClock > 0) return;
     this.musicClock = 3.8;

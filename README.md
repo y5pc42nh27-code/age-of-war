@@ -1,6 +1,8 @@
 # BLOODLINES: AGE OF CONFLICT
 
-Samodzielna, polskojęzyczna gra strategiczna w przeglądarce. Phaser 3 + JavaScript + Vite. Bez backendu, kont, CDN i płatnych API.
+Samodzielna, polskojęzyczna gra strategiczna w przeglądarce.
+
+**iPhone/iOS Safari:** uruchamiaj opublikowany adres HTTPS, nie podgląd HTML w aplikacji Pliki. Instrukcja publikacji, PWA/offline i diagnoza czarnego ekranu: [IPHONE.md](IPHONE.md). Phaser 3 + JavaScript + Vite. Bez backendu, kont, CDN i płatnych API.
 
 ## Uruchomienie
 
@@ -20,7 +22,7 @@ npm run build
 npm run preview
 ```
 
-Build w `dist/` jest w całości statyczny. Można umieścić jego zawartość na GitHub Pages lub dowolnym serwerze statycznym, również pod podścieżką. Gracz nie potrzebuje Node.js. Po pobraniu build nie wykonuje żadnych żądań do zewnętrznych serwisów. Lokalnie użyj serwera HTTP — otwarcie `index.html` przez `file://` nie jest wspieraną metodą uruchamiania modułów. Nie ma service workera instalującego grę do pracy po zamknięciu przeglądarki; do pełnego odłączenia sieci uruchom build na lokalnym serwerze.
+Build w `dist/` jest w całości statyczny. Można umieścić jego zawartość na GitHub Pages lub dowolnym serwerze statycznym, również pod podścieżką. Gracz nie potrzebuje Node.js. Po pobraniu build nie wykonuje żadnych żądań do zewnętrznych serwisów. Lokalnie użyj serwera HTTP — otwarcie `index.html` przez `file://` nie jest wspieraną metodą uruchamiania modułów. Wersja hostingowa zapisuje zasoby przez service workera po pierwszym poprawnym załadowaniu; wymaga HTTPS lub localhost. Komunikat w grze potwierdza gotowość offline. Przeglądarka może później usunąć cache. Samodzielny plik HTML jest wariantem komputerowym, a nie obejściem ograniczeń podglądu iOS.
 
 ## Sterowanie i zasady
 
@@ -62,6 +64,6 @@ Wymaga zainstalowanego Chromium (domyślnie `/usr/bin/chromium`, alternatywnie `
 
 ## Oprawa i ograniczenia
 
-Tło to oryginalna grafika generowana dla projektu; szczegóły pochodzenia w `public/assets/ASSETS.md`. Żołnierze, pojazdy i budowle są proceduralnie rysowane i animowane. Oprawa jest stylizowana, **nie fotorealistyczna**. Epoki różnią się architekturą, wyposażeniem, efektami, sylwetkami odległych osad i pogodą, ale współdzielą zasadniczy krajobraz doliny. Audio jest syntetyzowane, a nie nagrywane. Mechanika jest jednowymiarowa, mimo wizualnej głębi 2.5D. Taktyczne relacje kontr nie są symulacją historycznej skuteczności uzbrojenia.
+Tło to oryginalna grafika generowana dla projektu, skompresowana do WebP; szczegóły pochodzenia w `public/assets/ASSETS.md`. Żołnierze, pojazdy i budowle są proceduralnie rysowane i animowane. Oprawa jest stylizowana, **nie fotorealistyczna**. Epoki różnią się architekturą, wyposażeniem, efektami, sylwetkami odległych osad i pogodą, ale współdzielą zasadniczy krajobraz doliny. Audio jest syntetyzowane, a nie nagrywane. Mechanika jest jednowymiarowa, mimo wizualnej głębi 2.5D. Taktyczne relacje kontr nie są symulacją historycznej skuteczności uzbrojenia.
 
-Zalecany jest telefon w orientacji poziomej. Chrome/Chromium był testowany automatycznie; Firefox, Edge i fizyczne telefony wymagają osobnych testów. Nie ma potwierdzonego benchmarku 60 FPS na typowym PC ani 30 FPS na słabym telefonie. Kolejne kroki: ręcznie animowane atlasy postaci, odrębne krajobrazy wszystkich epok, nagrane audio oraz playtesty balansu i pomiary urządzeń.
+Zalecany jest telefon w orientacji poziomej. Chrome/Chromium i dotykowe rozdzielczości mobilne były testowane automatycznie; Firefox, Edge i fizyczne telefony wymagają osobnych testów. Dostępność WebKit oraz rzeczywiste wyniki i ograniczenia opisuje MOBILE_TEST_REPORT.md. Nie ma potwierdzonego benchmarku 60 FPS na typowym PC ani 30 FPS na słabym telefonie. Kolejne kroki: ręcznie animowane atlasy postaci, odrębne krajobrazy wszystkich epok, nagrane audio oraz playtesty balansu i pomiary urządzeń.

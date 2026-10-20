@@ -229,6 +229,7 @@ try {
   await page.click("#audio");
   check("audio toggle");
   await page.reload();
+  await page.waitForSelector("#start");
   assert.ok(await page.locator('[data-difficulty="hard"].selected').count());
   check("localStorage settings survive reload");
   const fps = await page.evaluate(

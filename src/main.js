@@ -1,4 +1,5 @@
-import "./style.css";
+import { battlefieldUrl } from "./assets.js";
+import { AdaptiveQuality, browserEnvironment } from "./quality.js";
 import { Simulation } from "./game/simulation.js";
 import {
   ERAS,
@@ -16,7 +17,7 @@ import { icon } from "./ui/icons.js";
 import { load, save } from "./ui/storage.js";
 document.documentElement.style.setProperty(
   "--battlefield-image",
-  `url("${import.meta.env.BASE_URL}assets/battlefield.png")`,
+  `url("${battlefieldUrl}")`,
 );
 const $ = (s) => document.querySelector(s);
 const prefs = load();
@@ -24,25 +25,36 @@ let sim = null,
   speed = 1,
   screen = "menu",
   tab = "army",
-  difficulty = prefs.difficulty || "normal",
+  difficulty = DIFFICULTIES[prefs.difficulty] ? prefs.difficulty : "normal",
   uiTimer = 0,
   previousEra = -1,
   toastTimer = null;
 const sound = new AudioSystem();
 sound.muted = !!prefs.muted;
-const portraits = ERAS.map((e, era) =>
-  e.units.map((_, slot) => makePortrait(era, slot, unitStats(era, slot))),
-);
+const quality = new AdaptiveQuality(browserEnvironment());
+if (["high", "balanced", "low"].includes(prefs.quality))
+  quality.choose(prefs.quality);
+const portraitCache = new Map();
+function portrait(era, slot) {
+  const key = `${era}:${slot}`;
+  if (!portraitCache.has(key)) {
+    // Retain three portraits instead of rendering and base64-encoding all 24 at boot.
+    if (portraitCache.size >= 3) portraitCache.clear();
+    portraitCache.set(key, makePortrait(era, slot, unitStats(era, slot)));
+  }
+  return portraitCache.get(key);
+}
 $("#app").innerHTML = `
-<header class="masthead"><a class="brand" href="./" aria-label="Bloodlines — ekran główny">${icon("crest", 33)}<span>BLOODLINES<small>AGE OF CONFLICT</small></span></a><div class="header-center"><span class="live-dot"></span> KAMPANIA PRZEZ WIEKI <span class="separator">/</span> <span id="header-era">10 000 P.N.E. — 2026</span></div><div class="header-actions"><button class="icon-button" id="help" aria-label="Instrukcja" title="Instrukcja [H]">${icon("help")}</button><button class="icon-button" id="audio" aria-label="Wycisz dźwięk" title="Dźwięk [M]">${icon(sound.muted ? "mute" : "sound")}</button><button class="speed-button" id="speed" title="Prędkość [F]">1×</button><button class="icon-button" id="pause" aria-label="Pauza" title="Pauza [Spacja]">${icon("pause")}</button></div></header>
+<header class="masthead"><a class="brand" href="./" aria-label="Bloodlines — ekran główny">${icon("crest", 33)}<span>BLOODLINES<small>AGE OF CONFLICT</small></span></a><div class="header-center"><span class="live-dot"></span> KAMPANIA PRZEZ WIEKI <span class="separator">/</span> <span id="header-era">10 000 P.N.E. — 2026</span></div><div class="header-actions"><button class="quality-button" id="quality" aria-label="Jakość grafiki">AUTO</button><button class="icon-button" id="help" aria-label="Instrukcja" title="Instrukcja [H]">${icon("help")}</button><button class="icon-button" id="audio" aria-label="Wycisz dźwięk" title="Dźwięk [M]">${icon(sound.muted ? "mute" : "sound")}</button><button class="speed-button" id="speed" title="Prędkość [F]">1×</button><button class="icon-button" id="pause" aria-label="Pauza" title="Pauza [Spacja]">${icon("pause")}</button></div></header>
 <main class="command-center">
 <section class="battle-status"><div class="coalition ally"><div class="faction-emblem">${icon("crest", 27)}</div><div class="faction-data"><span class="eyebrow">TWOJA KOALICJA</span><h2>Przymierze Świtu</h2><div class="health"><i id="hp-player"></i></div><div class="hp-values"><span id="health-player">6 000 / 6 000</span><span>INTEGRALNOŚĆ BAZY</span></div></div></div><div class="battle-clock"><span class="eyebrow">LINIA KONFLIKTU</span><strong id="clock">00:00</strong><span id="battle-state">OCZEKIWANIE NA ROZKAZY</span></div><div class="coalition enemy"><div class="faction-data"><span class="eyebrow">WROGA KOALICJA</span><h2>Dyrektorat Żelaza</h2><div class="health"><i id="hp-enemy"></i></div><div class="hp-values"><span>INTEGRALNOŚĆ BAZY</span><span id="health-enemy">6 000 / 6 000</span></div></div><div class="faction-emblem">${icon("flag", 27)}</div></div></section>
-<section class="theater" aria-label="Pole bitwy"><div id="battlefield"></div><div class="theater-top"><span class="location">${icon("target", 14)} DOLINA POPIOŁÓW <i>47° N · 18° E</i></span><span class="weather"><span></span> ŚWIT · MGŁA W DOLINIE</span></div><div class="theater-bottom"><span id="field-caption">JEDNA LUDZKOŚĆ. OSIEM EPOK. NIEKOŃCZĄCY SIĘ KONFLIKT.</span><span id="unit-count">0 / 28 JEDNOSTEK</span></div><div class="pause-label hidden" id="pause-label">${icon("pause", 28)}<h2>ROZKAZY WSTRZYMANE</h2><p>Spacja lub przycisk pauzy, aby wznowić</p><button class="primary" id="resume">WZNÓW BITWĘ ${icon("play", 16)}</button><button class="text-button" id="abandon">ZAKOŃCZ KAMPANIĘ</button></div><div id="era-announcement" class="era-announcement hidden"></div></section>
+<section class="theater" aria-label="Pole bitwy"><div id="battlefield"></div><div class="field-controls"><button id="view-mode" aria-label="Zmień widok pola bitwy">${quality.mobile ? "Całe pole" : "Zbliżenie frontu"}</button><button id="recenter" aria-label="Śledź front">Śledź front</button></div><div class="theater-top"><span class="location">${icon("target", 14)} DOLINA POPIOŁÓW <i>47° N · 18° E</i></span><span class="weather"><span></span> ŚWIT · MGŁA W DOLINIE</span></div><div class="theater-bottom"><span id="field-caption">JEDNA LUDZKOŚĆ. OSIEM EPOK. NIEKOŃCZĄCY SIĘ KONFLIKT.</span><span id="unit-count">0 / 28 JEDNOSTEK</span></div><div class="pause-label hidden" id="pause-label">${icon("pause", 28)}<h2>ROZKAZY WSTRZYMANE</h2><p>Spacja lub przycisk pauzy, aby wznowić</p><button class="primary" id="resume">WZNÓW BITWĘ ${icon("play", 16)}</button><button class="text-button" id="abandon">ZAKOŃCZ KAMPANIĘ</button></div><div id="era-announcement" class="era-announcement hidden"></div></section>
 <section class="command-deck"><div class="deck-heading"><div class="deck-tabs"><button data-tab="army" class="active">${icon("sword", 17)} REKRUTACJA <kbd>1–3</kbd></button><button data-tab="defense">${icon("fort", 17)} FORTYFIKACJE</button><button data-tab="intel">${icon("eye", 17)} WYWIAD</button></div><div class="resources"><div>${icon("coin", 23)}<span><strong id="money">290</strong><small id="income">+7,0 / s</small></span></div><div>${icon("star", 23)}<span><strong id="xp">0</strong><small>DOŚWIADCZENIE</small></span></div></div></div><div class="deck-content"><div id="action-cards" class="action-cards"></div><aside class="strategic-actions"><button id="evolve" class="evolve-button">${icon("evolve", 24)}<span>ROZWÓJ CYWILIZACJI<strong id="next-era">Starożytność</strong><small id="evolution-cost">100 XP</small></span><kbd>E</kbd><i id="evolution-progress"></i></button><button id="special" class="special-button">${icon("special", 24)}<span>ATAK SPECJALNY<strong id="special-name">Grad kamieni</strong><small id="special-cd">Gotowy do użycia</small></span><kbd>Q</kbd></button></aside></div><div class="queue-strip"><span>${icon("gear", 13)} KOLEJKA REKRUTACJI</span><div id="queue">Oczekiwanie na rozkazy</div><span class="queue-tip">Oddziały walczą automatycznie. Ty wyznaczasz strategię.</span></div></section>
 <section class="timeline" aria-label="Postęp epok">${ERAS.map((e, i) => `<div class="era-point ${i === 0 ? "current" : ""}" data-era="${i}"><span class="era-number">${String(i + 1).padStart(2, "0")}</span><div><strong>${e.name}</strong><small>${e.date}</small></div><i></i></div>`).join("")}</section>
 <footer class="footer"><span>HISTORIA PISANA DECYZJAMI</span><span id="tip">PIECHOTA → CIĘŻKIE · DYSTANSOWE → PIECHOTA · CIĘŻKIE → DYSTANSOWE</span><button id="history">${icon("help", 13)} NOTA HISTORYCZNA</button></footer>
 </main><div id="toast" class="toast hidden" role="status"></div><div id="modal-root"></div>`;
-const renderer = createRenderer("battlefield", () => sim, frame);
+const renderer = createRenderer("battlefield", () => sim, frame, quality);
+let updateToastShown = false;
 function persist(extra = {}) {
   Object.assign(prefs, { difficulty, muted: sound.muted, ...extra });
   save(prefs);
@@ -62,6 +74,7 @@ function closeModal() {
 }
 function showMenu() {
   screen = "menu";
+  document.body.dataset.screen = "menu";
   modal(
     `<div class="menu-kicker"><span></span> STRATEGIA CZASU RZECZYWISTEGO</div><div class="menu-title">BLOODLINES</div><div class="menu-subtitle">AGE OF CONFLICT</div><div class="ornament"><i></i>${icon("crest", 24)}<i></i></div><h1>Cywilizacje przemijają.<br><em>Konflikt pozostaje.</em></h1><p class="menu-description">Poprowadź swoją koalicję od kamiennego ostrza po erę dronów.<br>Buduj armię, zmieniaj historię i przełam linię frontu.</p><div class="difficulty-label">WYBIERZ POZIOM DOWODZENIA</div><div class="difficulty-options">${Object.entries(
       DIFFICULTIES,
@@ -93,6 +106,7 @@ function startGame() {
   screen = "battle";
   tab = "army";
   closeModal();
+  document.body.dataset.screen = "battle";
   $("#speed").textContent = "1×";
   $("#pause-label").classList.add("hidden");
   $("#pause").innerHTML = icon("pause");
@@ -101,7 +115,9 @@ function startGame() {
   renderCards();
   updateUI();
   toast(
-    "Witaj, dowódco. Zrekrutuj piechotę [1] i osłoń ją oddziałem dystansowym [2].",
+    quality.mobile
+      ? "Dotknij kart, aby rekrutować. Najwygodniej grać poziomo; widok frontu możesz przesuwać palcem."
+      : "Witaj, dowódco. Zrekrutuj piechotę [1] i osłoń ją oddziałem dystansowym [2].",
   );
 }
 function formatTime(t) {
@@ -153,7 +169,7 @@ function renderCards() {
     $("#action-cards").innerHTML = era.units
       .map((name, i) => {
         const u = unitStats(s.era, i);
-        return `<button class="unit-card" data-recruit="${i}" aria-label="Rekrutuj: ${name}" title="${COUNTERS[u.cls]} Życie: ${u.hp}. Obrażenia: ${u.damage} co ${u.interval} s. Zasięg: ${u.range}. Szkolenie: ${u.training} s."><div class="unit-art" style="background-image:url('${portraits[s.era][i]}')"><kbd>${i + 1}</kbd><span class="class-label">${CLASS_NAMES[u.cls]}</span></div><div class="unit-info"><h3>${name}</h3><div class="unit-bottom"><span class="unit-stat">${icon("sword", 12)} ${u.damage} <span>·</span> ${u.hp} HP</span><strong>${icon("coin", 14)} ${u.cost}</strong></div></div></button>`;
+        return `<button class="unit-card" data-recruit="${i}" aria-label="Rekrutuj: ${name}" title="${COUNTERS[u.cls]} Życie: ${u.hp}. Obrażenia: ${u.damage} co ${u.interval} s. Zasięg: ${u.range}. Szkolenie: ${u.training} s."><div class="unit-art" style="background-image:url('${portrait(s.era, i)}')"><kbd>${i + 1}</kbd><span class="class-label">${CLASS_NAMES[u.cls]}</span></div><div class="unit-info"><h3>${name}</h3><div class="unit-bottom"><span class="unit-stat">${icon("sword", 12)} ${u.damage} <span>·</span> ${u.hp} HP</span><strong>${icon("coin", 14)} ${u.cost}</strong></div></div></button>`;
       })
       .join("");
     document
@@ -240,7 +256,7 @@ function frame(realDt) {
   sim.events = [];
   uiTimer -= dt;
   if (uiTimer <= 0) {
-    uiTimer = 0.12;
+    uiTimer = quality.mobile ? 0.2 : 0.12;
     updateUI();
   }
 }
@@ -329,6 +345,7 @@ function updateUI() {
 function pause() {
   if (!sim || screen !== "battle") return;
   sim.paused = !sim.paused;
+  if (!sim.paused) sound.start();
   $("#pause-label").classList.toggle("hidden", !sim.paused);
   $("#pause").innerHTML = icon(sim.paused ? "play" : "pause");
   $("#pause").setAttribute("aria-label", sim.paused ? "Wznów" : "Pauza");
@@ -336,6 +353,7 @@ function pause() {
 }
 function endGame() {
   screen = "result";
+  document.body.dataset.screen = "result";
   persist({
     matches: (prefs.matches || 0) + 1,
     wins: (prefs.wins || 0) + (sim.result === "victory" ? 1 : 0),
@@ -356,7 +374,7 @@ function showHelp(fromMenu = false) {
   const wasPaused = sim?.paused;
   if (sim) sim.paused = true;
   modal(
-    `<span class="eyebrow">PODRĘCZNIK DOWÓDCY</span><h1>Wygraj bitwę o przyszłość.</h1><div class="help-grid"><div><b>01 / REKRUTUJ</b><p>Wybieraj oddziały przyciskami lub klawiszami 1, 2, 3. Maksymalnie 5 w kolejce i 28 w armii. Jednostki walczą automatycznie.</p></div><div><b>02 / KONTRUJ</b><p>Piechota → ciężcy → strzelcy → piechota. Osłaniaj jednostki dystansowe. Oblężenie burzy bazy. Najdroższy oddział nie zawsze wygrywa.</p></div><div><b>03 / ROZWIJAJ</b><p>Monety: dochód pasywny i eliminacje. XP: czas walki i eliminacje. E otwiera nową epokę. Stare oddziały pozostają na polu.</p></div><div><b>04 / PRZEŁAMUJ</b><p>Q: atak obszarowy na największą grupę wroga. Fortyfikacje chronią bazę. Zaopatrzenie zwiększa dochód. W epoce VIII użyj wywiadu i zakłócania.</p></div></div><div class="keyboard-help">SPACJA · PAUZA &nbsp; F · TEMPO 2× &nbsp; M · DŹWIĘK &nbsp; H · POMOC</div><p class="help-note">Dochód ograniczony do 2 500 monet. Po 10 minutach rosną obrażenia. Po 12 minutach obie bazy tracą życie wskutek wyczerpania. Oddziały w centrum przyspieszają ten proces u przeciwnika. Zniszcz wrogą bazę, zanim przeciwnik zniszczy twoją. Dostępność komend zależy od zasobów; przycisk wyjaśni brakujący warunek.</p><button class="primary" id="help-close">ROZUMIEM ${icon("arrow", 18)}</button>`,
+    `<span class="eyebrow">PODRĘCZNIK DOWÓDCY</span><h1>Wygraj bitwę o przyszłość.</h1><div class="help-grid"><div><b>01 / REKRUTUJ</b><p>Dotykaj kart jednostek lub używaj przycisków i klawiszy 1, 2, 3. Maksymalnie 5 w kolejce i 28 w armii. Jednostki walczą automatycznie.</p></div><div><b>02 / KONTRUJ</b><p>Piechota → ciężcy → strzelcy → piechota. Osłaniaj jednostki dystansowe. Oblężenie burzy bazy. Najdroższy oddział nie zawsze wygrywa.</p></div><div><b>03 / ROZWIJAJ</b><p>Monety: dochód pasywny i eliminacje. XP: czas walki i eliminacje. E otwiera nową epokę. Stare oddziały pozostają na polu.</p></div><div><b>04 / PRZEŁAMUJ</b><p>Q: atak obszarowy na największą grupę wroga. Fortyfikacje chronią bazę. Zaopatrzenie zwiększa dochód. W epoce VIII użyj wywiadu i zakłócania.</p></div></div><div class="keyboard-help">SPACJA · PAUZA &nbsp; F · TEMPO 2× &nbsp; M · DŹWIĘK &nbsp; H · POMOC</div><p class="help-note">Dochód ograniczony do 2 500 monet. Po 10 minutach rosną obrażenia. Po 12 minutach obie bazy tracą życie wskutek wyczerpania. Oddziały w centrum przyspieszają ten proces u przeciwnika. Zniszcz wrogą bazę, zanim przeciwnik zniszczy twoją. Dostępność komend zależy od zasobów; przycisk wyjaśni brakujący warunek.</p><button class="primary" id="help-close">ROZUMIEM ${icon("arrow", 18)}</button>`,
   );
   $("#help-close").onclick = () => {
     if (fromMenu) showMenu();
@@ -367,6 +385,60 @@ function showHelp(fromMenu = false) {
     }
   };
 }
+$("#view-mode").onclick = () => {
+  renderer.scene.focus = !renderer.scene.focus;
+  renderer.scene.manualCenter = null;
+  $("#view-mode").textContent = renderer.scene.focus
+    ? "Całe pole"
+    : "Zbliżenie frontu";
+};
+$("#recenter").onclick = () => {
+  renderer.scene.focus = true;
+  renderer.scene.manualCenter = null;
+  $("#view-mode").textContent = "Całe pole";
+};
+$("#quality").onclick = () => {
+  const wasPaused = sim?.paused;
+  const prior = $("#modal-root").firstElementChild;
+  if (sim) sim.paused = true;
+  modal(
+    `<span class="eyebrow">USTAWIENIA GRAFIKI</span><h1>Jakość i płynność</h1><p>Tryb automatyczny ogranicza efekty i rozdzielczość renderowania na telefonie. Statystyki, AI i tempo bitwy pozostają takie same.</p><div class="quality-options">${[
+      ["auto", "Automatyczna"],
+      ["high", "Wysoka · 60 FPS"],
+      ["balanced", "Zrównoważona · 30 FPS"],
+      ["low", "Oszczędna · 30 FPS"],
+    ]
+      .map(
+        ([key, name]) =>
+          `<button data-quality="${key}" class="${(quality.automatic ? "auto" : quality.key) === key ? "selected" : ""}">${name}</button>`,
+      )
+      .join(
+        "",
+      )}</div><p id="quality-state">Teraz: ${quality.profile.name}. ${quality.reason}. Podane FPS to limit, nie gwarancja urządzenia.</p><button id="quality-close" class="primary">WRÓĆ DO GRY</button>`,
+  );
+  document.querySelectorAll("[data-quality]").forEach(
+    (button) =>
+      (button.onclick = () => {
+        quality.choose(button.dataset.quality);
+        persist({ quality: button.dataset.quality });
+        $("#quality").textContent = quality.automatic
+          ? "AUTO"
+          : quality.key === "high"
+            ? "60"
+            : "30";
+        document
+          .querySelectorAll("[data-quality]")
+          .forEach((b) => b.classList.toggle("selected", b === button));
+        $("#quality-state").textContent =
+          `Teraz: ${quality.profile.name}. ${quality.reason}. Limit: ${quality.profile.fps} FPS.`;
+      }),
+  );
+  $("#quality-close").onclick = () => {
+    closeModal();
+    if (prior) $("#modal-root").append(prior);
+    if (sim) sim.paused = wasPaused;
+  };
+};
 $("#help").onclick = () => showHelp(screen === "menu");
 $("#audio").onclick = () => {
   sound.start();
@@ -447,4 +519,62 @@ window.bloodlines = {
   get renderer() {
     return renderer;
   },
+  get quality() {
+    return quality;
+  },
+  get diagnostics() {
+    return {
+      canvas: "2d",
+      profile: quality.key,
+      fpsLimit: quality.profile.fps,
+      paintMs: quality.lastPaintMs,
+      paintedFrames: quality.paintedFrames,
+      effects: renderer.scene.effects.length,
+      pooledEffects: renderer.scene.effectPool.length,
+      portraitCache: portraitCache.size,
+      cachedSprites: renderer.scene.unitSprites.size,
+      audioBuffers: sound.buffers?.size || 0,
+      units: sim?.units.length || 0,
+      canvases: [...document.querySelectorAll("canvas")].map((c) => ({
+        width: c.width,
+        height: c.height,
+      })),
+      heapBytes: performance.memory?.usedJSHeapSize || null,
+    };
+  },
 };
+
+// Offline support is optional and only registered on a secure hosted origin.
+if (
+  !window.BLOODLINES_STANDALONE &&
+  "serviceWorker" in navigator &&
+  window.isSecureContext &&
+  location.protocol !== "file:" &&
+  !import.meta.env.DEV
+) {
+  navigator.serviceWorker
+    .register(`${import.meta.env.BASE_URL}sw.js`)
+    .then(async (registration) => {
+      const worker = registration.installing || registration.waiting;
+      const announce = () => {
+        if (!updateToastShown) {
+          updateToastShown = true;
+          toast(
+            "Zasoby zapisane. Gra jest gotowa do uruchamiania offline pod tym samym adresem.",
+          );
+        }
+      };
+      if (registration.active) announce();
+      worker?.addEventListener("statechange", () => {
+        if (worker.state === "activated") announce();
+      });
+    })
+    .catch(() => {
+      toast("Tryb offline niedostępny. Gra przez internet nadal działa.");
+    });
+}
+
+window.addEventListener("pagehide", () => {
+  if (sim && screen === "battle" && !sim.paused) pause();
+  sound.ctx?.suspend().catch(() => {});
+});

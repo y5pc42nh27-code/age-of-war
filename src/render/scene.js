@@ -1,30 +1,58 @@
 import Phaser from "phaser";
+import { FramePacer } from "./pacing.js";
+import { battlefieldUrl } from "../assets.js";
 import { drawBase, soldier, ellipse, line, path } from "./art.js";
 import { ERAS } from "../game/data.js";
 export class Battlefield extends Phaser.Scene {
-  constructor(getGame, onEvents) {
+  constructor(getGame, onEvents, quality) {
     super("battlefield");
+    this.quality = quality;
+    this.pacer = new FramePacer();
+    this.focus = quality.mobile;
     this.getSimulation = getGame;
     this.onEvents = onEvents;
     this.effects = [];
     this.effectPool = [];
+    this.unitSprites = new Map();
     this.shake = 0;
   }
   preload() {
-    this.load.image(
-      "landscape",
-      `${import.meta.env.BASE_URL}assets/battlefield.png`,
-    );
+    this.load.image("landscape", battlefieldUrl);
   }
   create() {
     this.surface = this.textures.createCanvas("surface", 1600, 640);
+    this.terrain = document.createElement("canvas");
+    this.terrainEra = -1;
+    this.appliedQuality = null;
+    this.fogStamp = document.createElement("canvas");
+    this.fogStamp.width = this.fogStamp.height = 128;
+    const fogContext = this.fogStamp.getContext("2d");
+    const fog = fogContext.createRadialGradient(64, 64, 2, 64, 64, 64);
+    fog.addColorStop(0, "#d0c5a00b");
+    fog.addColorStop(1, "#b4b09000");
+    fogContext.fillStyle = fog;
+    fogContext.fillRect(0, 0, 128, 128);
     this.brush = this.surface.context;
     this.display = this.add.image(800, 320, "surface");
     this.bg = this.textures.get("landscape").getSourceImage();
+    this.input.on("pointerdown", (pointer) => {
+      this.dragX = pointer.x;
+      this.dragStart = this.manualCenter ?? this.cameraCenter ?? 800;
+    });
+    this.input.on("pointermove", (pointer) => {
+      if (pointer.isDown && this.focus && Math.abs(pointer.x - this.dragX) > 6)
+        this.manualCenter = Math.max(
+          400,
+          Math.min(
+            1200,
+            this.dragStart - (pointer.x - this.dragX) / this.cameras.main.zoom,
+          ),
+        );
+    });
     this.ready = true;
   }
   effect(effect) {
-    if (this.effects.length < 150) {
+    if (this.effects.length < this.quality.profile.effects) {
       const item = this.effectPool.pop() || {};
       const duration =
         effect.type === "death"
@@ -41,15 +69,56 @@ export class Battlefield extends Phaser.Scene {
   }
   update(_, delta) {
     if (!this.ready) return;
+    const elapsed = this.pacer.advance(delta, this.quality.profile.fps);
+    if (!elapsed) return;
     const sim = this.getSimulation();
-    this.onEvents(delta / 1000);
-    this.paint(sim, Math.min(delta / 1000, 0.05));
+    this.onEvents(elapsed / 1000);
+    const start = performance.now();
+    const profile = this.quality.profile;
+    if (this.appliedQuality !== this.quality.key) {
+      this.surface.setSize(
+        Math.round(1600 * profile.scale),
+        Math.round(640 * profile.scale),
+      );
+      this.display.setDisplaySize(1600, 640);
+      this.terrain.width = this.surface.width;
+      this.terrain.height = this.surface.height;
+      this.terrainEra = -1;
+      this.unitSprites.clear();
+      this.appliedQuality = this.quality.key;
+      this.effects.splice(profile.effects);
+      this.effectPool.splice(profile.effects);
+    }
+    const camera = this.cameras.main;
+    const zoom = camera.width / (this.focus && sim ? 800 : 1600);
+    const friends = sim?.units.filter((u) => u.side === 0) || [];
+    const front = friends.length ? Math.max(...friends.map((u) => u.x)) : 230;
+    this.cameraCenter =
+      this.focus && sim
+        ? Math.max(400, Math.min(1200, this.manualCenter ?? front + 120))
+        : 800;
+    camera.setZoom(zoom);
+    camera.centerOn(this.cameraCenter, 505 - (camera.height / zoom) * 0.25);
+    this.paint(sim, Math.min(elapsed / 1000, 0.05));
+    this.quality.sample(performance.now() - start, elapsed);
+    if (!this.bootComplete) {
+      this.bootComplete = true;
+      window.bloodlinesBoot?.complete();
+    }
   }
   paint(sim, dt) {
     const c = this.brush,
       t = sim?.time || 0,
       era = sim?.sides[0].era || 0,
       ground = 505;
+    c.setTransform(
+      this.quality.profile.scale,
+      0,
+      0,
+      this.quality.profile.scale,
+      0,
+      0,
+    );
     c.clearRect(0, 0, 1600, 640);
     c.save();
     if (this.shake > 0) {
@@ -59,79 +128,31 @@ export class Battlefield extends Phaser.Scene {
       );
       this.shake = Math.max(0, this.shake - dt * 35);
     }
-    if (this.bg?.width)
-      c.drawImage(
-        this.bg,
+    if (this.terrainEra !== era) {
+      const terrainContext = this.terrain.getContext("2d");
+      terrainContext.setTransform(
+        this.quality.profile.scale,
         0,
         0,
-        this.bg.width,
-        this.bg.height,
+        this.quality.profile.scale,
         0,
-        -255,
-        1600,
-        1067,
+        0,
       );
-    else {
-      c.fillStyle = "#555e4c";
-      c.fillRect(0, 0, 1600, 640);
+      terrainContext.clearRect(0, 0, 1600, 640);
+      this.paintTerrain(terrainContext, era);
+      this.terrainEra = era;
     }
-    const shade = c.createLinearGradient(0, 0, 0, 640);
-    shade.addColorStop(0, "#121e2820");
-    shade.addColorStop(0.7, era > 4 ? "#444e4560" : "#b5a77805");
-    shade.addColorStop(1, "#111912da");
-    c.fillStyle = shade;
-    c.fillRect(0, 0, 1600, 640);
-    // Distant settlements change with technology.
-    if (era > 0) {
-      c.save();
-      c.globalAlpha = 0.19;
-      c.fillStyle = "#303e35";
-      for (let i = 0; i < 16; i++) {
-        const x = 420 + i * 43,
-          y = 335 + Math.sin(i * 43) * 12,
-          h = era > 4 ? 30 + (i % 4) * 20 : 17 + (i % 3) * 12;
-        c.fillRect(x, y - h, 24, h);
-        if (era < 4)
-          path(
-            c,
-            [
-              [x - 3, y - h],
-              [x + 12, y - h - 12],
-              [x + 28, y - h],
-            ],
-            "#303e35",
-          );
-        if (era > 3) line(c, x + 17, y - h, x + 17, y - h - 26, "#303e35", 5);
-      }
-      c.restore();
-    }
-    // Ground strata and deterministic gravel.
-    const soil = c.createLinearGradient(0, 482, 0, 640);
-    soil.addColorStop(0, "#77745c38");
-    soil.addColorStop(0.15, "#383d2f90");
-    soil.addColorStop(1, "#131b16");
-    c.fillStyle = soil;
-    c.fillRect(0, 482, 1600, 158);
-    for (let n = 0; n < 170; n++) {
-      const x = (n * 137.4) % 1600,
-        y = 500 + ((n * 43.7) % 128);
-      c.fillStyle = n % 3 ? "#9f9b791c" : "#0e17124a";
-      c.fillRect(x, y, 2 + (n % 7), 1 + (n % 3));
-    }
-    for (let n = 0; n < 5; n++) {
-      const x = (n * 331 + 87) % 1600;
-      ellipse(c, x, 529 + (n % 2) * 29, 30, 3, "#141c1570");
-      for (let i = 0; i < 5; i++)
-        line(
-          c,
-          x + i * 6,
-          525,
-          x + i * 6 - 2,
-          519 - (i % 3) * 3,
-          "#9b997245",
-          1,
-        );
-    }
+    c.drawImage(
+      this.terrain,
+      0,
+      0,
+      this.terrain.width,
+      this.terrain.height,
+      0,
+      0,
+      1600,
+      640,
+    );
     const sides = sim?.sides || [
       { hp: 6000, maxHp: 6000, era: 0 },
       { hp: 6000, maxHp: 6000, era: 0 },
@@ -193,7 +214,16 @@ export class Battlefield extends Phaser.Scene {
       for (const u of units) {
         c.save();
         c.translate(0, ground + u.depth);
-        soldier(c, u, t, 0.86);
+        if (this.quality.key === "low") {
+          const sprite = this.cachedUnit(u, t);
+          c.drawImage(sprite, u.x - 50, -100);
+          if (u.hit > 0) {
+            c.globalAlpha = 0.35;
+            c.fillStyle = "#edd3a8";
+            c.fillRect(u.x - 6, -34, 12, 17);
+            c.globalAlpha = 1;
+          }
+        } else soldier(c, u, t, 0.86);
         c.restore();
         if (u.hp < u.maxHp) {
           c.fillStyle = "#1c241d";
@@ -267,7 +297,7 @@ export class Battlefield extends Phaser.Scene {
           ellipse(c, x, y, 3, 5, "#d4bf94");
         }
       } else if (e.type === "impact") {
-        for (let j = 0; j < 17; j++) {
+        for (let j = 0; j < this.quality.profile.fragments; j++) {
           const x = e.x + Math.sin(j * 9) * 130 * (1 - life),
             y = ground - (1 - life) * 90 - (j % 3) * 18;
           ellipse(
@@ -284,17 +314,13 @@ export class Battlefield extends Phaser.Scene {
       c.restore();
     }
     // Atmospheric dust uses bounded procedural wisps.
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < this.quality.profile.dust; i++) {
       const x = ((i * 273 + t * 7) % 1850) - 100,
         y = 440 + Math.sin(i * 2 + t * 0.15) * 28;
-      const fog = c.createRadialGradient(x, y, 5, x, y, 150);
-      fog.addColorStop(0, "#d0c5a00b");
-      fog.addColorStop(1, "#b4b09000");
-      c.fillStyle = fog;
-      c.fillRect(x - 150, y - 150, 300, 300);
+      c.drawImage(this.fogStamp, x - 150, y - 150, 300, 300);
     }
     if (era >= 5) {
-      for (let i = 0; i < 48; i++) {
+      for (let i = 0; i < this.quality.profile.rain; i++) {
         const x = ((i * 83 + t * 110) % 1700) - 50,
           y = (i * 131 + t * 320) % 640;
         line(c, x, y, x - 4, y + 13, "#c9d1b915", 0.7);
@@ -310,21 +336,150 @@ export class Battlefield extends Phaser.Scene {
     c.restore();
     this.surface.refresh();
   }
+  cachedUnit(unit, time) {
+    const state =
+      unit.attack > 0 ? "attack" : unit.state === "march" ? "march" : "idle";
+    const frame =
+      state === "march"
+        ? Math.floor((time * 8 + unit.phase) / (Math.PI / 2)) % 4
+        : 0;
+    const key = [
+      unit.era,
+      unit.slot,
+      unit.side,
+      unit.id % 5,
+      unit.weapon,
+      state,
+      frame,
+    ].join(":");
+    let sprite = this.unitSprites.get(key);
+    if (!sprite) {
+      sprite = document.createElement("canvas");
+      sprite.width = 112;
+      sprite.height = 120;
+      const ctx = sprite.getContext("2d");
+      ctx.translate(50, 100);
+      soldier(
+        ctx,
+        { ...unit, x: 0, hit: 0, state, phase: (frame * Math.PI) / 2 },
+        0,
+        0.86,
+      );
+      if (this.unitSprites.size >= 64)
+        this.unitSprites.delete(this.unitSprites.keys().next().value);
+      this.unitSprites.set(key, sprite);
+    }
+    return sprite;
+  }
+
+  paintTerrain(c, era) {
+    if (this.bg?.width)
+      c.drawImage(
+        this.bg,
+        0,
+        0,
+        this.bg.width,
+        this.bg.height,
+        0,
+        -255,
+        1600,
+        1067,
+      );
+    else {
+      c.fillStyle = "#555e4c";
+      c.fillRect(0, 0, 1600, 640);
+    }
+    const shade = c.createLinearGradient(0, 0, 0, 640);
+    shade.addColorStop(0, "#121e2820");
+    shade.addColorStop(0.7, era > 4 ? "#444e4560" : "#b5a77805");
+    shade.addColorStop(1, "#111912da");
+    c.fillStyle = shade;
+    c.fillRect(0, 0, 1600, 640);
+    // Distant settlements change with technology.
+    if (era > 0) {
+      c.save();
+      c.globalAlpha = 0.19;
+      c.fillStyle = "#303e35";
+      for (let i = 0; i < 16; i++) {
+        const x = 420 + i * 43,
+          y = 335 + Math.sin(i * 43) * 12,
+          h = era > 4 ? 30 + (i % 4) * 20 : 17 + (i % 3) * 12;
+        c.fillRect(x, y - h, 24, h);
+        if (era < 4)
+          path(
+            c,
+            [
+              [x - 3, y - h],
+              [x + 12, y - h - 12],
+              [x + 28, y - h],
+            ],
+            "#303e35",
+          );
+        if (era > 3) line(c, x + 17, y - h, x + 17, y - h - 26, "#303e35", 5);
+      }
+      c.restore();
+    }
+    // Ground strata and deterministic gravel.
+    const soil = c.createLinearGradient(0, 482, 0, 640);
+    soil.addColorStop(0, "#77745c38");
+    soil.addColorStop(0.15, "#383d2f90");
+    soil.addColorStop(1, "#131b16");
+    c.fillStyle = soil;
+    c.fillRect(0, 482, 1600, 158);
+    for (let n = 0; n < 170; n++) {
+      const x = (n * 137.4) % 1600,
+        y = 500 + ((n * 43.7) % 128);
+      c.fillStyle = n % 3 ? "#9f9b791c" : "#0e17124a";
+      c.fillRect(x, y, 2 + (n % 7), 1 + (n % 3));
+    }
+    for (let n = 0; n < 5; n++) {
+      const x = (n * 331 + 87) % 1600;
+      ellipse(c, x, 529 + (n % 2) * 29, 30, 3, "#141c1570");
+      for (let i = 0; i < 5; i++)
+        line(
+          c,
+          x + i * 6,
+          525,
+          x + i * 6 - 2,
+          519 - (i % 3) * 3,
+          "#9b997245",
+          1,
+        );
+    }
+  }
 }
-export function createRenderer(parent, getSim, onFrame) {
-  const scene = new Battlefield(getSim, onFrame);
+export function createRenderer(parent, getSim, onFrame, quality) {
+  const scene = new Battlefield(getSim, onFrame, quality);
+  const host = document.getElementById(parent);
   const game = new Phaser.Game({
     type: Phaser.CANVAS,
     parent,
-    width: 1600,
-    height: 640,
+    width: Math.max(1, host.clientWidth),
+    height: Math.max(1, host.clientHeight),
+    resolution: 1,
     transparent: true,
     antialias: true,
     scene: [scene],
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    fps: { target: 60, forceSetTimeOut: false },
+    scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
+    fps: {
+      target: 60,
+      smoothStep: false,
+      limit: 0,
+      forceSetTimeOut: false,
+    },
+    input: { activePointers: 2 },
     audio: { noAudio: true },
     banner: false,
   });
+  const observer =
+    typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver((entries) => {
+          const rect = entries[0].contentRect;
+          if (rect.width > 0 && rect.height > 0)
+            game.scale.resize(Math.round(rect.width), Math.round(rect.height));
+        })
+      : null;
+  observer?.observe(host);
+  game.events.once("destroy", () => observer?.disconnect());
   return { game, scene };
 }

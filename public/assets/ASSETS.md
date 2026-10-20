@@ -1,6 +1,6 @@
 # Pochodzenie zasobów
 
-- `battlefield.png`: oryginalny obraz wygenerowany dla BLOODLINES: AGE OF CONFLICT przy użyciu narzędzia image_gen (OpenAI), 20 października 2026. Filmowy krajobraz doliny z górami, lasem i ruinami; brak zapożyczonych assetów gier i hotlinków. Nie jest oznaczony jako zasób CC0.
+- `assets-source/battlefield.png` (źródło) i `public/assets/battlefield.webp` (wersja skompresowana do gry): oryginalny obraz wygenerowany dla BLOODLINES: AGE OF CONFLICT przy użyciu narzędzia image_gen (OpenAI), 20 października 2026. Filmowy krajobraz doliny z górami, lasem i ruinami; brak zapożyczonych assetów gier i hotlinków. Nie jest oznaczony jako zasób CC0.
 - Postacie, pojazdy, bazy, efekty i portrety jednostek: oryginalny kod proceduralny w `src/render/art.js` i `src/render/scene.js`.
 - Ikony, emblematy i favicon: oryginalne SVG tego projektu.
 - Muzyka ambientowa i efekty: synteza Web Audio w `src/audio.js`, bez sampli z zewnętrznych bibliotek.

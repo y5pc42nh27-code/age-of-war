@@ -1,19 +1,10 @@
 # Pobierz BLOODLINES: AGE OF CONFLICT
 
-Gotowe pliki znajdują się w folderze **downloads**:
+**iPhone:** graj przez opublikowany adres HTTPS w Safari. Podgląd HTML w aplikacji Pliki nie jest wspieranym środowiskiem uruchamiania. Publikacja, działanie offline i instrukcje: [IPHONE.md](IPHONE.md).
 
-- [BLOODLINES.html](downloads/BLOODLINES.html) — kompletna gra w jednym pliku, z osadzonymi zasobami.
-- [BLOODLINES.zip](downloads/BLOODLINES.zip) — pełny projekt z kodem źródłowym oraz gotowym plikiem HTML.
+- [BLOODLINES.html](downloads/BLOODLINES.html) — aktualna wersja samodzielna do przeglądarki komputerowej.
+- [BLOODLINES.zip](downloads/BLOODLINES.zip) — aktualny kod źródłowy, build hostingowy w `age-of-war/dist/` i samodzielny HTML.
 
-Na stronie pliku w GitHub kliknij **Download raw file** (ikonę pobierania). Jeśli plik jest zbyt duży do podglądu, wybierz **View raw**. Sam podgląd kodu nie uruchamia gry.
+Na stronie pliku w GitHub użyj **Download raw file**, aby pobrać plik. Strona `blob` pokazuje kod i nie uruchamia gry.
 
-Zapisany `BLOODLINES.html` otwórz w Chrome lub Edge. Archiwum ZIP najpierw rozpakuj. Gra nie wymaga Node.js ani pobierania zewnętrznych zasobów. Do wersji z kodem źródłowym instrukcje znajdują się w README.md.
-
-To identyczne pliki jak przygotowane wcześniej w środowisku roboczym; przy udostępnianiu nie zmieniono gry.
-
-## SHA-256
-
-```text
-53dec6a62639d80b217a63f48aff26065b3b2b5b0551a3c9623d114aeab85ccb  BLOODLINES.html
-c6ecd3c45bdfbbf78efffc2537ba51b093a49c2e7ddc321ecff5ef03c9344b7f  BLOODLINES.zip
-```
+Do publikacji potrzebna jest zawartość `dist/`, a nie podgląd pobranego HTML na iPhonie. Oryginalną wersję sprzed poprawek zachowuje historia Git (commit `5be33fa`). Bieżąca wersja zawiera poprawki mobilne bez zmiany zasad walki i ekonomii.

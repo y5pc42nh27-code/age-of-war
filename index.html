@@ -2,13 +2,100 @@
 <html lang="pl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#151816" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <title>BLOODLINES — Age of Conflict</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #111612;
+        color: #ddd5bb;
+        font-family: Arial, sans-serif;
+      }
+      #startup {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        padding: max(24px, env(safe-area-inset-top))
+          max(24px, env(safe-area-inset-right))
+          max(24px, env(safe-area-inset-bottom))
+          max(24px, env(safe-area-inset-left));
+        background: #111612;
+      }
+      #startup[hidden] {
+        display: none;
+      }
+      .startup-card {
+        max-width: 520px;
+        border: 1px solid #766b4c;
+        padding: 28px;
+        line-height: 1.7;
+      }
+      .startup-card h1 {
+        font-family: Georgia, serif;
+        font-size: 25px;
+        letter-spacing: 3px;
+      }
+      .startup-card h2 {
+        font-size: 18px;
+      }
+      .startup-card p {
+        font-size: 15px;
+        color: #b9bea8;
+      }
+      .startup-card button {
+        padding: 14px 20px;
+        background: #b7a370;
+        color: #172015;
+        border: 0;
+        font: inherit;
+      }
+      .startup-card small {
+        color: #9fa68e;
+      }
+    </style>
   </head>
   <body>
+    <section id="startup" aria-live="polite">
+      <div class="startup-card">
+        <h1>BLOODLINES</h1>
+        <h2 id="startup-title">Przygotowanie pola bitwy…</h2>
+        <p id="startup-detail">
+          Gra wymaga JavaScript i Canvas 2D. Na iPhonie otwórz opublikowany link
+          HTTPS w Safari. Systemowy podgląd HTML w aplikacji Pliki nie jest
+          wspieranym sposobem uruchamiania gry.
+        </p>
+        <noscript
+          ><p>
+            JavaScript jest wyłączony lub niedostępny. Ten podgląd nie uruchomi
+            gry. Otwórz jej stronę w Safari.
+          </p></noscript
+        ><button id="startup-retry" hidden>Spróbuj ponownie</button>
+        <p>
+          <small
+            >Przy pierwszej wizycie poczekaj na pobranie zasobów. Po
+            przygotowaniu trybu offline możesz grać bez sieci.</small
+          >
+        </p>
+      </div>
+    </section>
     <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <script src="./boot-guard.js"></script>
+    <script type="module" src="/src/boot.js"></script>
   </body>
 </html>
