@@ -1,4 +1,6 @@
 import { build } from "vite";
+import { Script } from "node:vm";
+import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { zipSync, strToU8 } from "fflate";
@@ -36,12 +38,17 @@ html = html
   .replace("./favicon.svg", favicon)
   .replace(
     '<script src="./boot-guard.js"></script>',
-    `<script>${guard.replaceAll("</script", "<\\/script")}</script>`,
+    () => `<script>${guard.replaceAll("</script", "<\\/script")}</script>`,
   )
   .replace(
     '<script type="module" src="/src/boot.js"></script>',
-    `<style>${css}</style><script>window.BLOODLINES_STANDALONE=true;window.BLOODLINES_ART=${JSON.stringify(art)};${js.replaceAll("</script", "<\\/script")}</script>`,
+    () => `<style>${css}</style><script>window.BLOODLINES_STANDALONE=true;window.BLOODLINES_ART=${JSON.stringify(art)};${js.replaceAll("</script", "<\\/script")}</script>`,
   );
+// Replacement callbacks preserve literal $& and $` sequences inside bundled JS.
+const blocks=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+assert.equal(blocks.length,2,'standalone should have exactly the guard and the game script');
+assert.ok(!html.includes('src="/src/boot.js"'),'no external entry remains');
+for(const block of blocks)new Script(block[1]);
 await fs.mkdir("downloads", { recursive: true });
 await fs.writeFile("downloads/BLOODLINES.html", html);
 const output = { "BLOODLINES.html": strToU8(html) };
