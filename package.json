@@ -1,0 +1,20 @@
+{
+  "name": "bloodlines-age-of-conflict",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node tests/browser.mjs"
+  },
+  "dependencies": {
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "vite": "6.4.1",
+    "playwright": "1.56.1"
+  }
+}
