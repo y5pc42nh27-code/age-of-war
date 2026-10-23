@@ -281,15 +281,13 @@ export class Battlefield extends Phaser.Scene {
       c.globalAlpha = life;
       if (e.type === "shot") {
         const y = ground - 29;
-        line(
-          c,
-          e.x,
-          y,
-          e.to,
-          y + (e.weapon === "cannon" ? 8 : 0),
-          e.era < 3 ? "#c8b78a88" : "#eed4a6",
-          e.weapon === "cannon" ? 3 : 1,
-        );
+        const progress=Math.min(1,(1-life)*2),direction=Math.sign(e.to-e.x)||1;
+        const head=e.x+(e.to-e.x)*progress;
+        if(['club','sword','shovel','pike'].includes(e.weapon)){
+          line(c,e.to-4,y-5,e.to+3,y+2,'#f8d39e',1.5);
+        }else{
+          line(c,head-direction*(e.era<3?11:21),y,head,y,e.era<3?'#f1d5a2':'#ffdb9c',e.weapon==='cannon'?2.5:1.2);
+        }
         if (e.era >= 3) ellipse(c, e.x, y, 7, 4, "#f4cc7a");
       } else if (e.type === "death") {
         ellipse(c, e.x, ground + 4, 20, 4, "#332c25");
@@ -310,7 +308,7 @@ export class Battlefield extends Phaser.Scene {
       } else if (e.type === "impact") {
         for (let j = 0; j < this.quality.profile.fragments; j++) {
           const x = e.x + Math.sin(j * 9) * 130 * (1 - life),
-            y = ground - (1 - life) * 90 - (j % 3) * 18;
+            y = ground - Math.sin((1-life)*Math.PI)*90 - (j % 3) * 12;
           ellipse(
             c,
             x,
@@ -338,10 +336,10 @@ export class Battlefield extends Phaser.Scene {
       }
     }
     const vignette = c.createLinearGradient(0, 0, 1600, 0);
-    vignette.addColorStop(0, "#10181480");
+    vignette.addColorStop(0, "#17392e35");
     vignette.addColorStop(0.22, "#10181400");
     vignette.addColorStop(0.78, "#10181400");
-    vignette.addColorStop(1, "#10181480");
+    vignette.addColorStop(1, "#17392e35");
     c.fillStyle = vignette;
     c.fillRect(0, 0, 1600, 640);
     c.restore();
@@ -353,7 +351,7 @@ export class Battlefield extends Phaser.Scene {
     const frame =
       state === "march"
         ? Math.floor((time * 8 + unit.phase) / (Math.PI / 2)) % 4
-        : 0;
+        : state === "attack" ? Math.min(3,Math.floor((1-unit.attack/.24)*4)) : 0;
     const key = [
       unit.era,
       unit.slot,
@@ -372,7 +370,7 @@ export class Battlefield extends Phaser.Scene {
       ctx.translate(50, 100);
       soldier(
         ctx,
-        { ...unit, x: 0, hit: 0, state, phase: (frame * Math.PI) / 2 },
+        { ...unit, x: 0, hit: 0, attack: state==="attack"?.24*(1-frame/4):0, state, phase: (frame * Math.PI) / 2 },
         0,
         0.86,
       );
@@ -401,8 +399,8 @@ export class Battlefield extends Phaser.Scene {
       c.fillRect(0, 0, 1600, 640);
     }
     const shade = c.createLinearGradient(0, 0, 0, 640);
-    shade.addColorStop(0, "#121e2820");
-    shade.addColorStop(0.7, era > 4 ? "#444e4560" : "#b5a77805");
+    shade.addColorStop(0, "#f6d18618");
+    shade.addColorStop(0.7, era > 4 ? "#67736230" : "#d8bd7910");
     shade.addColorStop(1, "#111912da");
     c.fillStyle = shade;
     c.fillRect(0, 0, 1600, 640);
@@ -434,7 +432,7 @@ export class Battlefield extends Phaser.Scene {
     const soil = c.createLinearGradient(0, 482, 0, 640);
     soil.addColorStop(0, "#77745c38");
     soil.addColorStop(0.15, "#383d2f90");
-    soil.addColorStop(1, "#131b16");
+    soil.addColorStop(1, "#283d2c");
     c.fillStyle = soil;
     c.fillRect(0, 482, 1600, 158);
     for (let n = 0; n < 170; n++) {

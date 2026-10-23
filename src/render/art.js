@@ -1,3 +1,4 @@
+import { animationPose } from "./pose.js";
 export function path(c, points, fill, stroke) {
   c.beginPath();
   points.forEach((p, i) => (i ? c.lineTo(...p) : c.moveTo(...p)));
@@ -7,6 +8,7 @@ export function path(c, points, fill, stroke) {
     c.fill();
   }
   if (stroke) {
+    c.lineWidth=1;
     c.strokeStyle = stroke;
     c.stroke();
   }
@@ -34,14 +36,14 @@ export function soldier(c, u, time, scale = 1) {
     weapon = u.weapon || "club",
     moving = u.state === "march",
     attack = u.attack > 0;
-  const phase = time * 8 + (u.phase || 0),
-    stride = moving ? Math.sin(phase) * 6 : 1,
-    bob = moving ? Math.abs(Math.cos(phase)) * 1.5 : 0;
+  const {stride,leftLift,rightLift,bob,swing,recoil}=animationPose(u,time);
+  const phase=time*8+(u.phase||0);
+  c.lineCap="round";c.lineJoin="round";
   ellipse(c, 0, 0, 16, 4, "#10120ed0");
-  c.translate(0, -bob);
+  c.translate((moving?1:0)-recoil-swing*1.5, -bob);
   if (["tank", "apc", "ifv", "cannon", "chariot"].includes(weapon)) {
     const modern = ["tank", "apc", "ifv"].includes(weapon),
-      col = enemy ? "#6d6558" : "#666e54";
+      col = enemy ? "#886552" : "#52766d";
     if (modern) {
       ellipse(c, 0, -5, 30, 7, "#292d28");
       for (let i = -23; i < 27; i += 9) {
@@ -67,7 +69,7 @@ export function soldier(c, u, time, scale = 1) {
           [12, -36],
           [23, -25],
         ],
-        enemy ? "#817465" : "#7b8165",
+        enemy ? "#a77b5e" : "#7f9c80",
         "#30352b",
       );
       line(c, 9, -31, 47, -34, "#282e27", 5);
@@ -85,7 +87,7 @@ export function soldier(c, u, time, scale = 1) {
         );
       line(c, -21, -24, 18, -27, "#b9b998", 1);
       line(c, -12, -34, -15, -57, "#33392f", 1);
-      c.fillStyle = enemy ? "#a56755" : "#c5b17a";
+      c.fillStyle = enemy ? "#ed9b79" : "#79d4bd";
       c.fillRect(-20, -21, 8, 3);
     } else if (weapon === "chariot") {
       path(
@@ -153,7 +155,7 @@ export function soldier(c, u, time, scale = 1) {
       line(c, -20, -17, 29, -34, "#949485", 7);
       line(c, -18, -20, 29, -37, "#c4b590", 1.5);
     }
-    if (attack) {
+    if (attack && u.attack>.18) {
       ellipse(c, 45, -34, 11, 5, "#e5b86e");
       ellipse(c, 45, -34, 5, 2, "#fff1c2");
     }
@@ -165,15 +167,16 @@ export function soldier(c, u, time, scale = 1) {
   ];
   const cloth = enemy
     ? era < 3
-      ? "#725b4c"
-      : "#676452"
+      ? "#8b6550"
+      : "#82634f"
     : era < 3
-      ? "#6a7060"
-      : "#5f6c58";
-  line(c, -4, -18, -5 - stride, -6, "#292c27", 6);
-  line(c, 5, -18, 6 + stride, -6, "#3a3c31", 6);
-  line(c, -5 - stride, -6, -2 - stride, -1, "#282925", 5);
-  line(c, 6 + stride, -6, 11 + stride, -1, "#252822", 5);
+      ? "#547b69"
+      : "#4b7169";
+  for(const [hip,foot,lift,tone] of [[-4,-5-stride,leftLift,'#303e39'],[5,6+stride,rightLift,'#4a5546']]){
+    const knee=(hip+foot)*.5+3,ky=-10-lift*.35;
+    line(c,hip,-19,knee,ky,tone,5.5);line(c,knee,ky,foot,-3-lift,tone,4.6);
+    line(c,foot,-3-lift,foot+5,-2-lift,'#26362f',4);
+  }
   path(
     c,
     [
@@ -272,13 +275,13 @@ export function soldier(c, u, time, scale = 1) {
     line(c, -8, -49, 7, -49, "#89917c", 1);
   }
   line(c, 1, -43, 4, -43, "#282e25", 1);
-  line(c, -4, -38, attack ? 10 : 7, -28, skin, 5);
-  const ax = attack ? 16 : 11,
-    ay = attack ? -31 : -29;
+  line(c, -4, -38, 7+swing*3, -28, skin, 5);
+  const ax=11+swing*7+(moving?Math.sin(phase)*1.4:0),
+    ay=-29-swing*4;
   line(c, 7, -29, ax, ay, skin, 4);
   if (["club", "sword", "shovel"].includes(weapon)) {
-    const wx = attack ? 30 : 17,
-      wy = attack ? -33 : -52;
+    const wx=17+swing*16,
+      wy=-52+swing*22;
     line(c, ax, ay, wx, wy, "#795e3c", 3);
     if (weapon === "club") ellipse(c, wx, wy, 4, 9, "#807d6d");
     else if (weapon === "sword") line(c, ax, ay, wx, wy, "#c2c5b6", 3);
@@ -295,9 +298,9 @@ export function soldier(c, u, time, scale = 1) {
         "#858b79",
       );
   } else if (["spear", "pike"].includes(weapon)) {
-    line(c, -12, -14, attack ? 48 : 24, attack ? -35 : -64, "#9a8057", 2);
-    const x = attack ? 48 : 24,
-      y = attack ? -35 : -64;
+    line(c, -12, -14, 24+swing*24, -64+swing*29, "#9a8057", 2);
+    const x=24+swing*24,
+      y=-64+swing*29;
     path(
       c,
       [
@@ -335,7 +338,7 @@ export function soldier(c, u, time, scale = 1) {
       line(c, dx, dy - 5, dx, dy + 5, "#303d35", 2);
       for (const a of [-10, 10]) ellipse(c, dx + a, dy, 6, 1, "#b6b9a5");
       ellipse(c, dx, dy, 3, 3, "#424e40");
-    } else if (attack) {
+    } else if (attack && u.attack>.18) {
       path(
         c,
         [
@@ -358,11 +361,10 @@ export function soldier(c, u, time, scale = 1) {
     ellipse(c, -8, -29, 6, 10, "#393f3440");
     ellipse(c, -8, -29, 2, 3, "#b9aa79");
   }
-  if (u.hit > 0) {
-    c.globalCompositeOperation = "source-atop";
-    c.fillStyle = "#eed3a840";
-    c.fillRect(-15, -55, 40, 55);
-  }
+  if(moving && Math.sin(phase)>.65){ellipse(c,-8-stride,1,5,1.5,'#c5ae7a40');}
+  // A small shoulder flash avoids tinting the entire background behind the sprite.
+  if(u.hit>0){line(c,-9,-36,-3,-32,'#fff1ca',1.8);}
+  c.fillStyle=enemy?'#e9a07e':'#89d9c1';c.fillRect(-8,-35,3,5);
   c.restore();
 }
 export function drawBase(c, x, ground, era, side, hp, maxHp) {
@@ -570,14 +572,14 @@ export function drawBase(c, x, ground, era, side, hp, maxHp) {
 }
 export function makePortrait(era, slot, stats) {
   const canvas = document.createElement("canvas");
-  canvas.width = 180;
-  canvas.height = 114;
+  canvas.width = 360;
+  canvas.height = 200;
   const c = canvas.getContext("2d");
-  const g = c.createLinearGradient(0, 0, 180, 114);
-  g.addColorStop(0, "#373e32");
-  g.addColorStop(1, "#171d19");
+  const g = c.createLinearGradient(0, 0, 360, 200);
+  g.addColorStop(0, "#47796d");
+  g.addColorStop(1, "#1b4246");
   c.fillStyle = g;
-  c.fillRect(0, 0, 180, 114);
+  c.fillRect(0, 0, 360, 200);
   for (let n = 0; n < 30; n++) {
     c.strokeStyle = "#b3b29408";
     c.beginPath();
@@ -585,7 +587,7 @@ export function makePortrait(era, slot, stats) {
     c.lineTo(n * 10 - 80, 114);
     c.stroke();
   }
-  c.translate(83, 109);
-  soldier(c, { ...stats, x: 0, id: slot + 1, side: 0, state: "idle" }, 0, 1.7);
+  c.translate(173, 192);
+  soldier(c, { ...stats, x: 0, id: slot + 1, side: 0, state: "idle" }, 0, 2.5);
   return canvas.toDataURL();
 }

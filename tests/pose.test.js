@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {animationPose} from '../src/render/pose.js';
+test('walk alternates lifted feet and remains continuous and bounded',()=>{const u={state:'march',phase:0};const a=animationPose(u,0),b=animationPose(u,Math.PI/8);assert.ok(a.leftLift>0&&a.rightLift===0);assert.ok(b.rightLift>0&&b.leftLift===0);for(let i=0;i<200;i++){const p=animationPose(u,i/60);assert.ok(Math.abs(p.stride)<=6&&Math.abs(p.bob)<=1.3);}});
+test('attack eases out and returns to rest without altering the unit',()=>{const u={state:'attack',attack:.12,hit:.09};const before={...u};assert.equal(animationPose(u,0).swing,1);assert.equal(animationPose({...u,attack:0},0).swing,0);assert.deepEqual(u,before);});
+test('idle has a subtle breathing pose and no marching stride',()=>{const u={state:'idle'};assert.equal(animationPose(u,1).stride,0);assert.notEqual(animationPose(u,1).bob,animationPose(u,0).bob);});

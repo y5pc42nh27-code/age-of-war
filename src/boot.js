@@ -1,4 +1,5 @@
 import "./style.css";
+import "./theme.css";
 async function boot() {
   try {
     if (!document.createElement("canvas").getContext("2d"))
