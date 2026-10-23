@@ -9,6 +9,7 @@ import { makeSide, passiveIncome, rewardKill, economyCost } from "./economy.js";
 import { createUnit } from "./units.js";
 import { updateCombat, damageUnit } from "./combat.js";
 import { updateAI } from "./ai.js";
+import { ASSAULT, REPAIR, repairCost } from "./orders.js";
 export class Simulation {
   constructor({ difficulty = "normal", seed = 42, autoplay = false } = {}) {
     this.difficulty = difficulty;
@@ -153,6 +154,24 @@ export class Simulation {
     this.emit("scout", { side: id });
     return true;
   }
+  assault(id) {
+    if(this.paused || this.result)return this.fail('Rozkaz wymaga aktywnej bitwy.');
+    const s=this.sides[id];
+    if(s.assaultCd>0)return this.fail(`Natarcie dostępne za ${Math.ceil(s.assaultCd)} s.`);
+    if(!this.units.some(u=>u.side===id&&u.hp>0))return this.fail('Zrekrutuj oddziały przed wydaniem rozkazu.');
+    if(s.money<ASSAULT.cost)return this.fail(`Natarcie kosztuje ${ASSAULT.cost} monet.`);
+    s.money-=ASSAULT.cost;s.assault=ASSAULT.duration;s.assaultCd=ASSAULT.cooldown;
+    this.emit('order',{side:id});return true;
+  }
+  repair(id) {
+    if(this.paused || this.result)return this.fail('Naprawa wymaga aktywnej bitwy.');
+    const s=this.sides[id],cost=repairCost(s);
+    if(s.repairEra===s.era)return this.fail('Naprawa wykorzystana w tej epoce.');
+    if(s.hp>=s.maxHp)return this.fail('Baza nie wymaga naprawy.');
+    if(s.money<cost)return this.fail(`Naprawa kosztuje ${cost} monet.`);
+    s.money-=cost;s.hp=Math.min(s.maxHp,s.hp+s.maxHp*REPAIR.fraction);s.repairEra=s.era;
+    this.emit('repair',{side:id});return true;
+  }
   onKill(side, unit) {
     rewardKill(this.sides[side], unit);
     this.emit("death", {
@@ -175,7 +194,7 @@ export class Simulation {
             (s.id === 1 ? DIFFICULTIES[this.difficulty].income : 1),
       );
       s.xp += dt * 1.65;
-      for (const key of ["specialCd", "ewCd", "jam", "recon", "reconCd"])
+      for (const key of ["specialCd", "ewCd", "jam", "recon", "reconCd", "assault", "assaultCd"])
         s[key] = Math.max(0, s[key] - dt);
       if (s.queue.length) {
         s.queue[0].remaining -= dt;

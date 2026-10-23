@@ -1,10 +1,11 @@
+import { ASSAULT } from "./orders.js";
 import { damageAgainst, WORLD } from "./data.js";
 export function damageUnit(sim, unit, damage, source) {
   if (unit.hp <= 0) return;
   const side = sim.sides[unit.side];
   const protectedByCover =
     side.cover && (unit.side === 0 ? unit.x < 410 : unit.x > 1190);
-  unit.hp -= damage * (protectedByCover ? 0.78 : 1);
+  unit.hp -= damage * (protectedByCover ? 0.78 : 1) * (side.assault>0?ASSAULT.incoming:1);
   unit.hit = 0.18;
   if (unit.hp <= 0) {
     unit.state = "dead";
@@ -51,7 +52,7 @@ export function updateCombat(sim, dt) {
         u.attack = 0.24;
         const jammed = u.cls === "drone" && sim.sides[u.side].jam > 0;
         if (!jammed) {
-          const escalation = 1 + Math.max(0, sim.time - 600) / 900;
+          const escalation = (1 + Math.max(0, sim.time - 600) / 900) * (sim.sides[u.side].assault>0?ASSAULT.damage:1);
           if (target) {
             const amount = damageAgainst(
               u,
@@ -85,7 +86,7 @@ export function updateCombat(sim, dt) {
         }
       }
     } else {
-      let step = u.speed * dt;
+      let step = u.speed * dt * (sim.sides[u.side].assault>0?ASSAULT.speed:1);
       for (const friend of alive) {
         if (friend.side !== u.side || friend.id === u.id || friend.hp <= 0)
           continue;

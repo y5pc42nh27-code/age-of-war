@@ -1,5 +1,7 @@
 # BLOODLINES: AGE OF CONFLICT
 
+Aktualizacja: [Natarcie, naprawa polowa i optymalizacja renderowania](UPDATE-2026-10-23.md).
+
 Samodzielna, polskojęzyczna gra strategiczna w przeglądarce.
 
 **iPhone/iOS Safari:** uruchamiaj opublikowany adres HTTPS, nie podgląd HTML w aplikacji Pliki. Instrukcja publikacji, PWA/offline i diagnoza czarnego ekranu: [IPHONE.md](IPHONE.md). Phaser 3 + JavaScript + Vite. Bez backendu, kont, CDN i płatnych API.

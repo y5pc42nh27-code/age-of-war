@@ -1,3 +1,4 @@
+import { repairCost } from "./orders.js";
 import { DIFFICULTIES, ERAS, unitStats, MAX_UNITS } from "./data.js";
 export function updateAI(sim, sideId, dt) {
   sim.aiTimers[sideId] -= dt;
@@ -17,6 +18,8 @@ export function updateAI(sim, sideId, dt) {
     sim.evolve(sideId);
     return;
   }
+  if(side.hp<side.maxHp*0.45 && side.repairEra!==side.era && side.money>repairCost(side)+130)sim.repair(sideId);
+  if(own.length>=4 && foes.length>=2 && side.assaultCd<=0 && side.money>300 && own.some(u=>Math.abs(u.x-800)<250))sim.assault(sideId);
   if (side.era === 7) {
     if (foes.some((u) => u.cls === "drone")) sim.jam(sideId);
     if (foes.length > 2) sim.scout(sideId);

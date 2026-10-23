@@ -2625,3 +2625,10 @@ body {
     height: calc(100dvh - 56px - var(--safe-top) - var(--safe-bottom));
   }
 }
+/* Tactical orders keep their own touch targets on both layouts. */
+.tactical-orders{display:flex;gap:10px;padding:0 23px 14px}
+.tactical-orders button{display:flex;align-items:center;gap:10px;min-height:48px;padding:9px 12px;text-align:left;flex:1;border:1px solid #a99e6840;background:#172015;color:#ded0a3;font-size:13px}
+.tactical-orders small{display:block;color:#a4b296;font-size:11px;margin-top:5px;line-height:1.35}.tactical-orders kbd{margin-left:auto}
+.tactical-orders button:hover,.tactical-orders .order-active{border-color:#d2b97b;background:#b9a36b19}
+.tactical-orders [aria-disabled=true]{color:#929b83}.unit-card:hover .unit-info h3{color:#efdeb0}.unit-card{border-top-color:#b8ac7555}
+@media(pointer:coarse),(max-width:700px){.tactical-orders{padding:0 10px 12px;gap:8px}.tactical-orders button{min-height:60px;padding:9px;font-size:12px;gap:7px}.tactical-orders small{font-size:10px}.tactical-orders kbd{display:none}}

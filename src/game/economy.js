@@ -30,5 +30,8 @@ export function makeSide(id) {
     spent: 0,
     damage: 0,
     evolvedAt: 0,
+    assault: 0,
+    assaultCd: 0,
+    repairEra: -1,
   };
 }

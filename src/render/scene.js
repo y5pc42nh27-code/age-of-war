@@ -12,6 +12,7 @@ export class Battlefield extends Phaser.Scene {
     this.getSimulation = getGame;
     this.onEvents = onEvents;
     this.effects = [];
+    this.craters = [];
     this.effectPool = [];
     this.unitSprites = new Map();
     this.shake = 0;
@@ -65,7 +66,9 @@ export class Battlefield extends Phaser.Scene {
       Object.assign(item, effect, { life: duration, total: duration });
       this.effects.push(item);
     }
-    if (effect.type === "impact") this.shake = 9;
+    if (effect.type === "impact") {
+      this.shake=9;if(this.craters.length>=12)this.craters.shift();this.craters.push({x:effect.x,r:32+(effect.era||0)*3});
+    }
   }
   update(_, delta) {
     if (!this.ready) return;
@@ -99,8 +102,12 @@ export class Battlefield extends Phaser.Scene {
         : 800;
     camera.setZoom(zoom);
     camera.centerOn(this.cameraCenter, 505 - (camera.height / zoom) * 0.25);
+    const idle = !sim || sim.paused || sim.result || document.body.dataset.screen !== 'battle';
+    const idleKey=[this.quality.key,camera.width,camera.height,this.cameraCenter,sim?.time,this.focus,this.craters.length].join(':');
+    if(idle && this.idleKey===idleKey)return;
+    this.idleKey=idle?idleKey:null;
     this.paint(sim, Math.min(elapsed / 1000, 0.05));
-    this.quality.sample(performance.now() - start, elapsed);
+    if(!idle)this.quality.sample(performance.now() - start, elapsed);
     if (!this.bootComplete) {
       this.bootComplete = true;
       window.bloodlinesBoot?.complete();
@@ -153,6 +160,7 @@ export class Battlefield extends Phaser.Scene {
       1600,
       640,
     );
+    for(const crater of this.craters){ellipse(c,crater.x,ground+7,crater.r,7,'#0d130f90');ellipse(c,crater.x,ground+5,crater.r*0.75,3,'#564d3970');}
     const sides = sim?.sides || [
       { hp: 6000, maxHp: 6000, era: 0 },
       { hp: 6000, maxHp: 6000, era: 0 },
@@ -225,6 +233,9 @@ export class Battlefield extends Phaser.Scene {
           }
         } else soldier(c, u, t, 0.86);
         c.restore();
+        const teamColor=u.side?'#d3987b':'#d5c78d';
+        line(c,u.x-5,ground+u.depth+3,u.x+5,ground+u.depth+3,teamColor,2);
+        if(sides[u.side].assault>0){const dir=u.side?-1:1;line(c,u.x-4*dir,ground+u.depth-66,u.x+3*dir,ground+u.depth-62,teamColor,2);line(c,u.x+3*dir,ground+u.depth-62,u.x-4*dir,ground+u.depth-58,teamColor,2);}
         if (u.hp < u.maxHp) {
           c.fillStyle = "#1c241d";
           c.fillRect(u.x - 13, ground + u.depth - 56, 26, 2);

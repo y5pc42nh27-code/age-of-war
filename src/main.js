@@ -1,5 +1,6 @@
 import { battlefieldUrl } from "./assets.js";
 import { AdaptiveQuality, browserEnvironment } from "./quality.js";
+import { ASSAULT, repairCost } from "./game/orders.js";
 import { Simulation } from "./game/simulation.js";
 import {
   ERAS,
@@ -49,7 +50,7 @@ $("#app").innerHTML = `
 <main class="command-center">
 <section class="battle-status"><div class="coalition ally"><div class="faction-emblem">${icon("crest", 27)}</div><div class="faction-data"><span class="eyebrow">TWOJA KOALICJA</span><h2>Przymierze Świtu</h2><div class="health"><i id="hp-player"></i></div><div class="hp-values"><span id="health-player">6 000 / 6 000</span><span>INTEGRALNOŚĆ BAZY</span></div></div></div><div class="battle-clock"><span class="eyebrow">LINIA KONFLIKTU</span><strong id="clock">00:00</strong><span id="battle-state">OCZEKIWANIE NA ROZKAZY</span></div><div class="coalition enemy"><div class="faction-data"><span class="eyebrow">WROGA KOALICJA</span><h2>Dyrektorat Żelaza</h2><div class="health"><i id="hp-enemy"></i></div><div class="hp-values"><span>INTEGRALNOŚĆ BAZY</span><span id="health-enemy">6 000 / 6 000</span></div></div><div class="faction-emblem">${icon("flag", 27)}</div></div></section>
 <section class="theater" aria-label="Pole bitwy"><div id="battlefield"></div><div class="field-controls"><button id="view-mode" aria-label="Zmień widok pola bitwy">${quality.mobile ? "Całe pole" : "Zbliżenie frontu"}</button><button id="recenter" aria-label="Śledź front">Śledź front</button></div><div class="theater-top"><span class="location">${icon("target", 14)} DOLINA POPIOŁÓW <i>47° N · 18° E</i></span><span class="weather"><span></span> ŚWIT · MGŁA W DOLINIE</span></div><div class="theater-bottom"><span id="field-caption">JEDNA LUDZKOŚĆ. OSIEM EPOK. NIEKOŃCZĄCY SIĘ KONFLIKT.</span><span id="unit-count">0 / 28 JEDNOSTEK</span></div><div class="pause-label hidden" id="pause-label">${icon("pause", 28)}<h2>ROZKAZY WSTRZYMANE</h2><p>Spacja lub przycisk pauzy, aby wznowić</p><button class="primary" id="resume">WZNÓW BITWĘ ${icon("play", 16)}</button><button class="text-button" id="abandon">ZAKOŃCZ KAMPANIĘ</button></div><div id="era-announcement" class="era-announcement hidden"></div></section>
-<section class="command-deck"><div class="deck-heading"><div class="deck-tabs"><button data-tab="army" class="active">${icon("sword", 17)} REKRUTACJA <kbd>1–3</kbd></button><button data-tab="defense">${icon("fort", 17)} FORTYFIKACJE</button><button data-tab="intel">${icon("eye", 17)} WYWIAD</button></div><div class="resources"><div>${icon("coin", 23)}<span><strong id="money">290</strong><small id="income">+7,0 / s</small></span></div><div>${icon("star", 23)}<span><strong id="xp">0</strong><small>DOŚWIADCZENIE</small></span></div></div></div><div class="deck-content"><div id="action-cards" class="action-cards"></div><aside class="strategic-actions"><button id="evolve" class="evolve-button">${icon("evolve", 24)}<span>ROZWÓJ CYWILIZACJI<strong id="next-era">Starożytność</strong><small id="evolution-cost">100 XP</small></span><kbd>E</kbd><i id="evolution-progress"></i></button><button id="special" class="special-button">${icon("special", 24)}<span>ATAK SPECJALNY<strong id="special-name">Grad kamieni</strong><small id="special-cd">Gotowy do użycia</small></span><kbd>Q</kbd></button></aside></div><div class="queue-strip"><span>${icon("gear", 13)} KOLEJKA REKRUTACJI</span><div id="queue">Oczekiwanie na rozkazy</div><span class="queue-tip">Oddziały walczą automatycznie. Ty wyznaczasz strategię.</span></div></section>
+<section class="command-deck"><div class="deck-heading"><div class="deck-tabs"><button data-tab="army" class="active">${icon("sword", 17)} REKRUTACJA <kbd>1–3</kbd></button><button data-tab="defense">${icon("fort", 17)} FORTYFIKACJE</button><button data-tab="intel">${icon("eye", 17)} WYWIAD</button></div><div class="resources"><div>${icon("coin", 23)}<span><strong id="money">290</strong><small id="income">+7,0 / s</small></span></div><div>${icon("star", 23)}<span><strong id="xp">0</strong><small>DOŚWIADCZENIE</small></span></div></div></div><div class="deck-content"><div id="action-cards" class="action-cards"></div><aside class="strategic-actions"><button id="evolve" class="evolve-button">${icon("evolve", 24)}<span>ROZWÓJ CYWILIZACJI<strong id="next-era">Starożytność</strong><small id="evolution-cost">100 XP</small></span><kbd>E</kbd><i id="evolution-progress"></i></button><button id="special" class="special-button">${icon("special", 24)}<span>ATAK SPECJALNY<strong id="special-name">Grad kamieni</strong><small id="special-cd">Gotowy do użycia</small></span><kbd>Q</kbd></button></aside></div><div class="tactical-orders"><button id="assault" title="8 s: +15% obrażeń, +25% marszu, ale +10% otrzymywanych obrażeń. Odnowienie 50 s. [R]">${icon("arrow",18)}<span>Natarcie <small id="assault-status">100 monet · 8 s</small></span><kbd>R</kbd></button><button id="repair" title="Przywraca 8% maksymalnego życia bazy. Raz na epokę. [T]">${icon("fort",18)}<span>Naprawa polowa <small id="repair-status">180 monet · raz na epokę</small></span><kbd>T</kbd></button></div><div class="queue-strip"><span>${icon("gear", 13)} KOLEJKA REKRUTACJI</span><div id="queue">Oczekiwanie na rozkazy</div><span class="queue-tip">Oddziały walczą automatycznie. Ty wyznaczasz strategię.</span></div></section>
 <section class="timeline" aria-label="Postęp epok">${ERAS.map((e, i) => `<div class="era-point ${i === 0 ? "current" : ""}" data-era="${i}"><span class="era-number">${String(i + 1).padStart(2, "0")}</span><div><strong>${e.name}</strong><small>${e.date}</small></div><i></i></div>`).join("")}</section>
 <footer class="footer"><span>HISTORIA PISANA DECYZJAMI</span><span id="tip">PIECHOTA → CIĘŻKIE · DYSTANSOWE → PIECHOTA · CIĘŻKIE → DYSTANSOWE</span><button id="history">${icon("help", 13)} NOTA HISTORYCZNA</button></footer>
 </main><div id="toast" class="toast hidden" role="status"></div><div id="modal-root"></div>`;
@@ -112,6 +113,7 @@ function startGame() {
   $("#pause").innerHTML = icon("pause");
   $("#pause").setAttribute("aria-label", "Pauza");
   renderer.scene.effects = [];
+  renderer.scene.craters.length=0;
   renderCards();
   updateUI();
   toast(
@@ -280,6 +282,11 @@ function updateUI() {
   }
   $("#header-era").textContent =
     `${ERAS[s.era].name.toUpperCase()} · ${ERAS[s.era].date}`;
+  $('#assault-status').textContent=s.assault>0?`Aktywne: ${Math.ceil(s.assault)} s · +15% ataku / +10% podatności`:s.assaultCd>0?`Odnowienie: ${Math.ceil(s.assaultCd)} s`:`${ASSAULT.cost} monet · 8 s natarcia`;
+  $('#assault').classList.toggle('order-active',s.assault>0);
+  $('#repair-status').textContent=s.repairEra===s.era?'Wykorzystano w tej epoce':`${repairCost(s)} monet · przywraca 8% życia`;
+  $('#assault').setAttribute('aria-disabled',String(s.assaultCd>0||s.money<ASSAULT.cost));
+  $('#repair').setAttribute('aria-disabled',String(s.repairEra===s.era||s.hp>=s.maxHp||s.money<repairCost(s)));
   $("#money").textContent = Math.floor(s.money).toLocaleString("pl-PL");
   $("#income").textContent = `+${passiveIncome(s).toLocaleString("pl-PL")} / s`;
   $("#xp").textContent = Math.floor(s.xp).toLocaleString("pl-PL");
@@ -374,7 +381,7 @@ function showHelp(fromMenu = false) {
   const wasPaused = sim?.paused;
   if (sim) sim.paused = true;
   modal(
-    `<span class="eyebrow">PODRĘCZNIK DOWÓDCY</span><h1>Wygraj bitwę o przyszłość.</h1><div class="help-grid"><div><b>01 / REKRUTUJ</b><p>Dotykaj kart jednostek lub używaj przycisków i klawiszy 1, 2, 3. Maksymalnie 5 w kolejce i 28 w armii. Jednostki walczą automatycznie.</p></div><div><b>02 / KONTRUJ</b><p>Piechota → ciężcy → strzelcy → piechota. Osłaniaj jednostki dystansowe. Oblężenie burzy bazy. Najdroższy oddział nie zawsze wygrywa.</p></div><div><b>03 / ROZWIJAJ</b><p>Monety: dochód pasywny i eliminacje. XP: czas walki i eliminacje. E otwiera nową epokę. Stare oddziały pozostają na polu.</p></div><div><b>04 / PRZEŁAMUJ</b><p>Q: atak obszarowy na największą grupę wroga. Fortyfikacje chronią bazę. Zaopatrzenie zwiększa dochód. W epoce VIII użyj wywiadu i zakłócania.</p></div></div><div class="keyboard-help">SPACJA · PAUZA &nbsp; F · TEMPO 2× &nbsp; M · DŹWIĘK &nbsp; H · POMOC</div><p class="help-note">Dochód ograniczony do 2 500 monet. Po 10 minutach rosną obrażenia. Po 12 minutach obie bazy tracą życie wskutek wyczerpania. Oddziały w centrum przyspieszają ten proces u przeciwnika. Zniszcz wrogą bazę, zanim przeciwnik zniszczy twoją. Dostępność komend zależy od zasobów; przycisk wyjaśni brakujący warunek.</p><button class="primary" id="help-close">ROZUMIEM ${icon("arrow", 18)}</button>`,
+    `<span class="eyebrow">PODRĘCZNIK DOWÓDCY</span><h1>Wygraj bitwę o przyszłość.</h1><div class="help-grid"><div><b>01 / REKRUTUJ</b><p>Dotykaj kart jednostek lub używaj przycisków i klawiszy 1, 2, 3. Maksymalnie 5 w kolejce i 28 w armii. Jednostki walczą automatycznie.</p></div><div><b>02 / KONTRUJ</b><p>Piechota → ciężcy → strzelcy → piechota. Osłaniaj jednostki dystansowe. Oblężenie burzy bazy. Najdroższy oddział nie zawsze wygrywa.</p></div><div><b>03 / ROZWIJAJ</b><p>Monety: dochód pasywny i eliminacje. XP: czas walki i eliminacje. E otwiera nową epokę. Stare oddziały pozostają na polu.</p></div><div><b>04 / PRZEŁAMUJ</b><p>Q: atak obszarowy na największą grupę wroga. Natarcie (R) przyspiesza marsz i zwiększa obrażenia przez 8 s, kosztem większej podatności na trafienia. Naprawa (T) przywraca 8% życia bazy raz na epokę. Fortyfikacje chronią bazę. Zaopatrzenie zwiększa dochód. W epoce VIII użyj wywiadu i zakłócania.</p></div></div><div class="keyboard-help">SPACJA · PAUZA &nbsp; F · TEMPO 2× &nbsp; M · DŹWIĘK &nbsp; H · POMOC</div><p class="help-note">Dochód ograniczony do 2 500 monet. Po 10 minutach rosną obrażenia. Po 12 minutach obie bazy tracą życie wskutek wyczerpania. Oddziały w centrum przyspieszają ten proces u przeciwnika. Zniszcz wrogą bazę, zanim przeciwnik zniszczy twoją. Dostępność komend zależy od zasobów; przycisk wyjaśni brakujący warunek.</p><button class="primary" id="help-close">ROZUMIEM ${icon("arrow", 18)}</button>`,
   );
   $("#help-close").onclick = () => {
     if (fromMenu) showMenu();
@@ -463,6 +470,8 @@ $("#abandon").onclick = () => {
   endGame();
 };
 $("#evolve").onclick = () => act(() => sim.evolve(0));
+$('#assault').onclick=()=>act(()=>sim.assault(0));
+$('#repair').onclick=()=>act(()=>sim.repair(0));
 $("#special").onclick = () => act(() => sim.special(0));
 document.querySelectorAll("[data-tab]").forEach(
   (b) =>
@@ -500,6 +509,8 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     pause();
   }
+  if(e.key.toLowerCase()==='r')$('#assault').click();
+  if(e.key.toLowerCase()==='t')$('#repair').click();
   if (e.key.toLowerCase() === "e") $("#evolve").click();
   if (e.key.toLowerCase() === "q") $("#special").click();
   if (e.key.toLowerCase() === "f") $("#speed").click();
