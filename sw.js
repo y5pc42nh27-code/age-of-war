@@ -1,5 +1,5 @@
-const CACHE='bloodlines-8678b6304e56914c';
-const FILES=["./PHASER-LICENSE.txt","./assets/ASSETS.md","./assets/battlefield.webp","./assets/index-DolmNMlF.css","./assets/index-Eey4021z.js","./assets/main-2W1ON9V1.js","./boot-guard.js","./favicon.svg","./icon-192.png","./icon-512.png","./index.html","./manifest.webmanifest"];
+const CACHE='bloodlines-2f078f8e8bca5980';
+const FILES=["./PHASER-LICENSE.txt","./assets/ASSETS.md","./assets/battlefield.webp","./assets/index-C_YZwSTt.js","./assets/index-Yc_uqBRj.css","./assets/main-D0gWRgFB.js","./boot-guard.js","./favicon.svg","./icon-192.png","./icon-512.png","./index.html","./manifest.webmanifest"];
 const absolute=FILES.map(p=>new URL(p,self.registration.scope).href);
 self.addEventListener('install',event=>event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(absolute);await self.skipWaiting();})()));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const key of await caches.keys()){if(key.startsWith('bloodlines-')&&key!==CACHE)await caches.delete(key);}await self.clients.claim();})()));
